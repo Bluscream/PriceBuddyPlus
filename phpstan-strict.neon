@@ -22,11 +22,14 @@ parameters:
         - app/Models/SearchWatchListing.php
         - app/Notifications/SearchWatchNotification.php
         - app/Policies/SearchWatchPolicy.php
+        - app/Services/Dashboard/SearchWatchSection.php
         - app/Services/Marketplaces
         - app/Services/SearchWatchListingTracker.php
         - app/Services/SearchWatchRunner.php
+        - database/migrations/2026_11_24_000000_add_review_fields_to_search_watches.php
         - tests/Feature/Console/CheckSearchWatchesTest.php
         - tests/Feature/Filament/SearchWatchResourceTest.php
+        - tests/Feature/Services/Dashboard/SearchWatchSectionTest.php
         - tests/Feature/Services/EbaySearchTest.php
         - tests/Feature/Services/KleinanzeigenSearchTest.php
         - tests/Feature/Services/SearchWatchListingTrackerTest.php

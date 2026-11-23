@@ -6,6 +6,7 @@ namespace App\Filament\Resources\SearchWatchResource\Pages;
 
 use App\Enums\Marketplace;
 use App\Filament\Resources\SearchWatchResource;
+use App\Filament\Resources\SearchWatchResource\Pages\Concerns\PreviewsSearch;
 use App\Models\SearchWatch;
 use App\Services\SearchWatchRunner;
 use Filament\Actions;
@@ -17,6 +18,8 @@ use Filament\Resources\Pages\EditRecord;
  */
 class EditSearchWatch extends EditRecord
 {
+    use PreviewsSearch;
+
     protected static string $resource = SearchWatchResource::class;
 
     protected function getHeaderActions(): array
@@ -37,7 +40,9 @@ class EditSearchWatch extends EditRecord
                     };
                     $notification->send();
                     $this->refreshFormData(['last_checked_at', 'last_error', 'blocked_until']);
+                    $this->dispatch('search-watch-listings-changed');
                 }),
+            $this->previewAction(),
             Actions\Action::make('open_search')
                 ->label(__('Open search'))
                 ->icon('heroicon-o-arrow-top-right-on-square')
@@ -57,5 +62,26 @@ class EditSearchWatch extends EditRecord
         $data['marketplace'] = Marketplace::fromSearchUrl($data['search_url']);
 
         return $data;
+    }
+
+    /**
+     * Apply changed filters to the listings already stored, so the table and the dashboard
+     * reflect them now rather than after the next check. Nobody is notified for these.
+     */
+    // Nullable to match the trait's contract, which the create page fulfils with null.
+    protected function storedWatch(): ?SearchWatch
+    {
+        return $this->record;
+    }
+
+    protected function afterSave(): void
+    {
+        $changed = SearchWatchRunner::new()->rescore($this->record);
+        if ($changed > 0) {
+            Notification::make()->info()
+                ->title(__(':count stored listings were re-scored against the new filters.', ['count' => $changed]))
+                ->send();
+            $this->dispatch('search-watch-listings-changed');
+        }
     }
 }

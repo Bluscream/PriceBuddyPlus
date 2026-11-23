@@ -6,7 +6,7 @@ use App\Models\User;
 
 class DashboardLayoutService
 {
-    public const SECTION_KEYS = ['stat_bar', 'buy_now', 'recently_dropped', 'needs_attention'];
+    public const SECTION_KEYS = ['stat_bar', 'buy_now', 'recently_dropped', 'needs_attention', 'search_watches'];
 
     /**
      * Default visibility per section for users with no stored preference.
@@ -18,6 +18,7 @@ class DashboardLayoutService
         'buy_now' => true,
         'recently_dropped' => false,
         'needs_attention' => false,
+        'search_watches' => true,
     ];
 
     public function __construct(private readonly User $user) {}

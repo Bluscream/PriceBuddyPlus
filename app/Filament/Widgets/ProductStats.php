@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Tag;
 use App\Services\Dashboard\DashboardLayoutService;
 use App\Services\Dashboard\DashboardSections;
+use App\Services\Dashboard\SearchWatchSection;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,7 @@ class ProductStats extends Widget
                 'buy_now' => $sectionsService->buyNow(),
                 'recently_dropped' => $sectionsService->recentlyDropped(),
                 'needs_attention' => $sectionsService->needsAttention(),
+                'search_watches' => $layout->isSectionVisible('search_watches') ? (new SearchWatchSection($user))->data() : null,
             ],
         ];
     }

@@ -28,6 +28,7 @@ class HomeDashboard extends Page
         'buy_now' => "What's good to buy now",
         'recently_dropped' => 'Recently dropped',
         'needs_attention' => 'Needs attention',
+        'search_watches' => 'Marketplace finds',
     ];
 
     protected static ?int $navigationSort = -2;

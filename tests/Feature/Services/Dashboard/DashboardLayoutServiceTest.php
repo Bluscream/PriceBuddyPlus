@@ -88,7 +88,7 @@ class DashboardLayoutServiceTest extends TestCase
 
         $service->toggleSection('not_a_section');
 
-        $this->assertCount(4, $service->sections());
+        $this->assertCount(\count(DashboardLayoutService::SECTION_KEYS), $service->sections());
     }
 
     public function test_collapse_persists(): void

@@ -140,4 +140,80 @@ final class SearchWatchResourceTest extends TestCase
         $table->assertCanSeeTableRecords([$match]);
         $table->assertCanNotSeeTableRecords([$filtered]);
     }
+
+    public function test_listings_gone_from_the_last_successful_check_are_hidden_by_default(): void
+    {
+        $watch = SearchWatch::factory()->for($this->user)->create(['last_succeeded_at' => now()]);
+        $listed = SearchWatchListing::factory()->for($watch)->create(['last_seen_at' => now()]);
+        $gone = SearchWatchListing::factory()->for($watch)->create(['last_seen_at' => now()->subDay()]);
+
+        $table = Livewire::test(ListingsRelationManager::class, ['ownerRecord' => $watch, 'pageClass' => EditSearchWatch::class]);
+        $table->assertCanSeeTableRecords([$listed])->assertCanNotSeeTableRecords([$gone]);
+        $table->filterTable('still_listed', false)->assertCanSeeTableRecords([$gone])->assertCanNotSeeTableRecords([$listed]);
+    }
+
+    public function test_the_has_price_filter_separates_priced_listings(): void
+    {
+        $watch = SearchWatch::factory()->for($this->user)->create();
+        $priced = SearchWatchListing::factory()->for($watch)->create();
+        $priceless = SearchWatchListing::factory()->for($watch)->create(['price' => null, 'price_text' => 'VB']);
+
+        Livewire::test(ListingsRelationManager::class, ['ownerRecord' => $watch, 'pageClass' => EditSearchWatch::class])
+            ->filterTable('has_price', true)
+            ->assertCanSeeTableRecords([$priced])
+            ->assertCanNotSeeTableRecords([$priceless]);
+    }
+
+    public function test_opening_a_watch_marks_listings_since_the_previous_visit_as_new(): void
+    {
+        $watch = SearchWatch::factory()->for($this->user)->create(['listings_viewed_at' => now()->subHour()]);
+        $old = SearchWatchListing::factory()->for($watch)->create(['first_seen_at' => now()->subDay()]);
+        $new = SearchWatchListing::factory()->for($watch)->create(['first_seen_at' => now()->subMinutes(5)]);
+
+        Livewire::test(ListingsRelationManager::class, ['ownerRecord' => $watch, 'pageClass' => EditSearchWatch::class])
+            ->filterTable('new_since_visit')
+            ->assertCanSeeTableRecords([$new])
+            ->assertCanNotSeeTableRecords([$old]);
+
+        self::assertTrue($watch->refresh()->listings_viewed_at?->greaterThan(now()->subMinute()));
+    }
+
+    public function test_saving_changed_filters_rescores_stored_listings(): void
+    {
+        $watch = SearchWatch::factory()->for($this->user)->create();
+        $broken = SearchWatchListing::factory()->for($watch)->create(['description' => 'Kompressor defekt']);
+        $fine = SearchWatchListing::factory()->for($watch)->create(['description' => 'Wie neu']);
+
+        Livewire::test(EditSearchWatch::class, ['record' => $watch->getRouteKey()])
+            ->fillForm(['exclude_keywords' => ['defekt']])
+            ->call('save')
+            ->assertHasNoFormErrors()
+            ->assertNotified();
+
+        self::assertFalse($broken->refresh()->matches_filters);
+        self::assertTrue($fine->refresh()->matches_filters);
+    }
+
+    public function test_preview_shows_what_unsaved_filters_would_match_without_saving(): void
+    {
+        Http::fake(['www.kleinanzeigen.de/*' => Http::response(
+            (string) \file_get_contents(\dirname(__DIR__, 2).'/Fixtures/Kleinanzeigen/search-results.html')
+        )]);
+        $watch = SearchWatch::factory()->for($this->user)->create();
+
+        Livewire::test(EditSearchWatch::class, ['record' => $watch->getRouteKey()])
+            ->fillForm(['max_price' => 1])
+            ->mountAction('preview')
+            ->assertSee('Above the maximum price.');
+
+        self::assertSame(0, $watch->listings()->count());
+        self::assertNull($watch->refresh()->max_price);
+    }
+
+    public function test_preview_on_the_create_page_needs_a_search_url(): void
+    {
+        Livewire::test(CreateSearchWatch::class)
+            ->mountAction('preview')
+            ->assertSee('Enter a Kleinanzeigen or eBay.de search results URL first.');
+    }
 }

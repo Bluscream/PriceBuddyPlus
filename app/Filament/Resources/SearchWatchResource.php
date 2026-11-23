@@ -8,6 +8,7 @@ use App\Enums\Marketplace;
 use App\Filament\Resources\SearchWatchResource\Pages;
 use App\Filament\Resources\SearchWatchResource\RelationManagers\ListingsRelationManager;
 use App\Models\SearchWatch;
+use App\Models\SearchWatchListing;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -49,7 +50,7 @@ class SearchWatchResource extends Resource
                                 }
                             },
                         ])
-                        ->helperText(__('Kleinanzeigen: e.g. https://www.kleinanzeigen.de/s-55116/pinguino/k0l5315r50 · eBay: e.g. https://www.ebay.de/sch/i.html?_nkw=pinguino')),
+                        ->helperText(__('Kleinanzeigen: e.g. https://www.kleinanzeigen.de/s-55116/pinguino/k0l5315r50. Pick a category on Kleinanzeigen before copying the URL to keep unrelated ads out. eBay: e.g. https://www.ebay.de/sch/i.html?_nkw=pinguino')),
                 ]),
             Forms\Components\Section::make(__('Filters'))
                 ->description(__('Applied on top of the search itself. Listings outside them are still recorded but never notified.'))
@@ -66,7 +67,11 @@ class SearchWatchResource extends Resource
                             },
                         ]),
                     Forms\Components\TextInput::make('max_distance_km')->label(__('Max distance'))->integer()->minValue(1)->suffix('km')
-                        ->helperText(__('Kleinanzeigen shows the distance from the search location.')),
+                        ->helperText(__('Empty uses the radius in the Kleinanzeigen URL, since it fills short result pages with ads from much further away.')),
+                    Forms\Components\Toggle::make('require_price')
+                        ->label(__('Require a price'))
+                        ->helperText(__('Skip ads without a price, such as “VB” only or “Zu verschenken”.'))
+                        ->columnSpan(['default' => 3, 'md' => 'full']),
                     Forms\Components\TagsInput::make('include_keywords')
                         ->label(__('Title must contain one of'))
                         ->placeholder(__('e.g. pinguino'))
@@ -92,11 +97,14 @@ class SearchWatchResource extends Resource
                 ]),
             Forms\Components\Section::make(__('Status'))
                 ->visibleOn('edit')
-                ->columns(3)
+                ->columns(4)
                 ->schema([
                     Forms\Components\Placeholder::make('last_checked_at')
                         ->label(__('Last checked'))
                         ->content(fn (?SearchWatch $record): string => $record?->last_checked_at?->diffForHumans() ?? __('Never')),
+                    Forms\Components\Placeholder::make('last_succeeded_at')
+                        ->label(__('Last successful check'))
+                        ->content(fn (?SearchWatch $record): string => $record?->last_succeeded_at?->diffForHumans() ?? __('Never')),
                     Forms\Components\Placeholder::make('blocked_until')
                         ->label(__('Paused until'))
                         ->content(fn (?SearchWatch $record): string => $record?->blocked_until?->isFuture() ? $record->blocked_until->diffForHumans() : '–'),
@@ -113,14 +121,37 @@ class SearchWatchResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->weight(FontWeight::Bold)->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('marketplace')->badge(),
-                Tables\Columns\TextColumn::make('listings_count')->label(__('Listings'))->counts('listings')->sortable(),
+                Tables\Columns\TextColumn::make('matching_listings_count')
+                    ->label(__('Matching'))
+                    ->counts([
+                        'listings as matching_listings_count' => fn (Builder $q) => SearchWatchListing::whereStillListed($q->where('matches_filters', true)),
+                    ])
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'success' : 'gray')
+                    ->description(fn (SearchWatch $record): string => __(':count seen', ['count' => $record->listings_count ?? 0]))
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('max_price')->label(__('Max price'))->money('EUR')->placeholder('–'),
                 Tables\Columns\TextColumn::make('last_checked_at')->label(__('Last checked'))->since()->sortable()->placeholder(__('Never')),
-                Tables\Columns\IconColumn::make('healthy')
-                    ->label(__('OK'))
-                    ->state(fn (SearchWatch $record): bool => $record->last_error === null)
-                    ->boolean()
-                    ->tooltip(fn (SearchWatch $record): ?string => $record->last_error),
+                Tables\Columns\IconColumn::make('status')
+                    ->label(__('Status'))
+                    ->state(fn (SearchWatch $record): string => match (true) {
+                        $record->isPaused() => 'paused',
+                        $record->last_error !== null => 'error',
+                        default => 'ok',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'paused' => 'heroicon-o-pause-circle',
+                        'error' => 'heroicon-o-exclamation-triangle',
+                        default => 'heroicon-o-check-circle',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'paused' => 'warning',
+                        'error' => 'danger',
+                        default => 'success',
+                    })
+                    ->tooltip(fn (SearchWatch $record): ?string => $record->isPaused()
+                        ? __('Blocked by the marketplace, paused until :time.', ['time' => $record->blocked_until?->diffForHumans()]).' '.$record->last_error
+                        : $record->last_error),
                 Tables\Columns\ToggleColumn::make('enabled'),
             ])
             ->defaultSort('name')
@@ -132,7 +163,7 @@ class SearchWatchResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query) => $query->where('user_id', auth()->id()));
+            ->modifyQueryUsing(fn (Builder $query) => $query->where('user_id', auth()->id())->withCount('listings'));
     }
 
     public static function getRelations(): array

@@ -21,12 +21,20 @@ Supported marketplaces:
 2. Copy the address of the **results page** (not a single listing).
 3. In PriceBuddy open **Search watches → New search watch**, give it a name and paste the URL.
    The marketplace is detected from the URL.
+   On Kleinanzeigen, picking a category first (e.g. *Haushaltsgeräte*) keeps a generic query
+   such as "mobile klimaanlage" from being swamped by unrelated ads; the category is part of
+   the URL you copy.
 4. Optionally add filters on top of the search:
-   - **Min / max price**. Listings without a price ("VB" only) always pass.
+   - **Min / max price**. Listings without a price ("VB" only) pass unless **Require a price**
+     is on.
    - **Max distance**. Kleinanzeigen shows the distance from your search location on each
-     listing, which catches the out-of-area ads it mixes into radius searches.
+     listing. Left empty, the radius in the Kleinanzeigen URL (`…r50` = 50 km) is used, because
+     Kleinanzeigen pads short result pages with ads hundreds of kilometres away.
    - **Title must contain one of** and **Skip listings mentioning** (title and description,
      case-insensitive), for example `defekt`, `suche`, `ersatzteile`.
+   - **Preview matches** runs the search once with the filters in the form, saved or not, and
+     shows which listings would match and why the others would not. Nothing is saved and no
+     notification is sent.
 5. Pick how often to check. The minimum is 10 minutes; 30–60 minutes is plenty for most
    searches.
 
@@ -36,9 +44,22 @@ immediately and see the baseline.
 
 ## Listings
 
-The watch page lists every listing seen, with its current, first and lowest price. Listings
-that fail your filters are kept (so a later price drop can bring them back into range) but
-hidden by default; use the **Matches filters** filter to see them.
+The watch page lists every listing seen, with its price, how far it has dropped since it was
+first seen, distance and location. Listings new since your last visit are marked. By default
+the table shows listings that match your filters and were still in the results at the last
+successful check; use the filters to see listings that are gone, that fail your filters
+(kept so a later price drop can bring them back into range), or that have no price.
+
+Saving changed filters re-scores the listings already stored straight away, without sending
+notifications.
+
+## Dashboard
+
+The dashboard's **Marketplace finds** section shows every watch with its number of matching
+listings, how many are new since you last opened it, and whether its last check worked. Below
+that are the best deals, listings priced furthest below the median of everything the watch
+has matched (once it has at least four priced matches), and the newest matches. Turn the
+section off under **Customize** on the dashboard.
 
 **Track price** turns a listing into a normal PriceBuddy product with price history, and turns
 on *notify on every change* for it, so you hear when the seller lowers a negotiable price.

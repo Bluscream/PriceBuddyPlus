@@ -12,6 +12,8 @@
             @include('filament.widgets.dashboard.product-section', ['sectionKey' => 'recently_dropped', 'heading' => 'Recently dropped', 'icon' => 'heroicon-s-arrow-trending-down', 'products' => $sectionData['recently_dropped']])
         @elseif ($section['key'] === 'needs_attention')
             @include('filament.widgets.dashboard.product-section', ['sectionKey' => 'needs_attention', 'heading' => 'Needs attention', 'icon' => 'heroicon-s-exclamation-triangle', 'products' => $sectionData['needs_attention']])
+        @elseif ($section['key'] === 'search_watches' && $sectionData['search_watches'] !== null)
+            @include('filament.widgets.dashboard.search-watches', $sectionData['search_watches'])
         @endif
     @endforeach
 

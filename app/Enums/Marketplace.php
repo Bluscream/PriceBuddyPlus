@@ -40,6 +40,25 @@ enum Marketplace: string implements HasDescription, HasLabel
     }
 
     /**
+     * The search radius a URL asks for, if the marketplace encodes one. Kleinanzeigen puts it in
+     * the last path segment after the location id: `k0l5315r50` or `k0c176l5315r50` is 50 km.
+     */
+    public function searchRadiusKm(string $url): ?int
+    {
+        if ($this !== self::Kleinanzeigen) {
+            return null;
+        }
+
+        $path = \parse_url(\trim($url), \PHP_URL_PATH);
+        $segments = \is_string($path) ? \explode('/', \rtrim($path, '/')) : [];
+        $last = \end($segments);
+
+        return \is_string($last) && \preg_match('/^(?:k0)?(?:c\d+)?l\d+r(\d{1,4})(?:\+|$)/', $last, $match) === 1
+            ? (int) $match[1]
+            : null;
+    }
+
+    /**
      * Work out which marketplace a search URL belongs to. Only search result pages are
      * accepted, never a single listing and never another host, because the URL is fetched
      * by the server.

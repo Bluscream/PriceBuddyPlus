@@ -6,11 +6,27 @@ namespace App\Filament\Resources\SearchWatchResource\Pages;
 
 use App\Enums\Marketplace;
 use App\Filament\Resources\SearchWatchResource;
+use App\Filament\Resources\SearchWatchResource\Pages\Concerns\PreviewsSearch;
+use App\Models\SearchWatch;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateSearchWatch extends CreateRecord
 {
+    use PreviewsSearch;
+
     protected static string $resource = SearchWatchResource::class;
+
+    protected function storedWatch(): ?SearchWatch
+    {
+        return null;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->previewAction(),
+        ];
+    }
 
     /**
      * @param  array<string, mixed>  $data

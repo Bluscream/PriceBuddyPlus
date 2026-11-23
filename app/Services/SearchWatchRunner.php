@@ -31,6 +31,9 @@ final class SearchWatchRunner
 
     public const int MAX_BACKOFF_MINUTES = 24 * 60;
 
+    /** The results page shows a teaser; this only guards against a malformed page. */
+    private const int MAX_DESCRIPTION_CHARS = 2000;
+
     /**
      * @param  array<string, MarketplaceSearch>  $clients  keyed by Marketplace value
      */
@@ -47,8 +50,7 @@ final class SearchWatchRunner
     public function check(SearchWatch $watch, ?CarbonInterface $now = null): SearchWatchCheckResultDto
     {
         $now ??= now();
-        $client = $this->clients[$watch->marketplace->value]
-            ?? throw new MarketplaceException(\sprintf('No client for marketplace %s.', $watch->marketplace->value));
+        $client = $this->client($watch);
 
         try {
             $found = $client->search($watch->search_url);
@@ -69,6 +71,7 @@ final class SearchWatchRunner
 
         $watch->forceFill([
             'last_checked_at' => $now,
+            'last_succeeded_at' => $now,
             'blocked_until' => null,
             'consecutive_failures' => 0,
             'last_error' => null,
@@ -82,31 +85,82 @@ final class SearchWatchRunner
     }
 
     /**
+     * Fetch the search and score each listing against the watch's filters, without storing
+     * anything or notifying anyone. The watch may be unsaved, so a form can be tried out.
+     *
+     * @return list<array{listing: MarketplaceListingDto, mismatch: ?string}>
+     *
+     * @throws MarketplaceException
+     */
+    public function preview(SearchWatch $watch): array
+    {
+        return \array_map(
+            fn (MarketplaceListingDto $dto): array => ['listing' => $dto, 'mismatch' => $this->mismatch($watch, $dto)],
+            $this->client($watch)->search($watch->search_url),
+        );
+    }
+
+    /**
+     * Score the stored listings against the watch's current filters, so a filter change shows
+     * up straight away instead of at the next check. Never notifies.
+     *
+     * @return int how many listings changed
+     */
+    public function rescore(SearchWatch $watch): int
+    {
+        $changed = 0;
+        foreach ($watch->listings()->get() as $listing) {
+            $matches = $this->matches($watch, $listing->toDto());
+            if ($matches !== $listing->matches_filters) {
+                $listing->forceFill(['matches_filters' => $matches])->save();
+                $changed++;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
      * Whether a listing passes the watch's own filters, on top of whatever the search URL filters.
      */
     public function matches(SearchWatch $watch, MarketplaceListingDto $dto): bool
     {
-        if ($dto->price !== null) {
-            if ($watch->min_price !== null && $dto->price < $watch->min_price) {
-                return false;
-            }
-            if ($watch->max_price !== null && $dto->price > $watch->max_price) {
-                return false;
-            }
+        return $this->mismatch($watch, $dto) === null;
+    }
+
+    /**
+     * Why a listing fails the watch's filters, as a short sentence for the user, or null when it
+     * passes them.
+     */
+    public function mismatch(SearchWatch $watch, MarketplaceListingDto $dto): ?string
+    {
+        if ($dto->price === null && $watch->require_price) {
+            return self::reason('No price given.');
         }
 
-        if ($watch->max_distance_km !== null && $dto->distanceKm !== null && $dto->distanceKm > $watch->max_distance_km) {
-            return false;
+        if ($dto->price !== null && $watch->min_price !== null && $dto->price < $watch->min_price) {
+            return self::reason('Below the minimum price.');
+        }
+
+        if ($dto->price !== null && $watch->max_price !== null && $dto->price > $watch->max_price) {
+            return self::reason('Above the maximum price.');
+        }
+
+        $maxDistance = $watch->effectiveMaxDistanceKm();
+        if ($maxDistance !== null && $dto->distanceKm !== null && $dto->distanceKm > $maxDistance) {
+            return self::reason('Further than :km km away.', ['km' => $maxDistance]);
         }
 
         $title = \mb_strtolower($dto->title);
-        $text = $title.' '.\mb_strtolower((string) $dto->description);
         $include = self::keywords($watch->include_keywords);
         if ($include !== [] && ! \array_any($include, static fn (string $k): bool => \str_contains($title, $k))) {
-            return false;
+            return self::reason('The title has none of the required words.');
         }
 
-        return ! \array_any(self::keywords($watch->exclude_keywords), static fn (string $k): bool => \str_contains($text, $k));
+        $text = $title.' '.\mb_strtolower((string) $dto->description);
+        $excluded = \array_find(self::keywords($watch->exclude_keywords), static fn (string $k): bool => \str_contains($text, $k));
+
+        return $excluded !== null ? self::reason('Mentions “:word”.', ['word' => $excluded]) : null;
     }
 
     private function upsert(SearchWatch $watch, MarketplaceListingDto $dto, CarbonInterface $now, bool $baseline): ?SearchWatchEventDto
@@ -114,6 +168,7 @@ final class SearchWatchRunner
         $matches = $this->matches($watch, $dto);
         $attributes = [
             'title' => $dto->title,
+            'description' => $dto->description !== null ? \mb_substr($dto->description, 0, self::MAX_DESCRIPTION_CHARS) : null,
             'url' => $dto->url,
             'image' => $dto->image,
             'location' => $dto->location !== null ? \mb_substr($dto->location, 0, 255) : null,
@@ -191,6 +246,22 @@ final class SearchWatchRunner
         ]);
 
         return new SearchWatchCheckResultDto(ok: false, error: $e->getMessage());
+    }
+
+    /**
+     * @param  array<string, int|string>  $replace
+     */
+    private static function reason(string $text, array $replace = []): string
+    {
+        $translated = __($text, $replace);
+
+        return \is_string($translated) ? $translated : $text;
+    }
+
+    private function client(SearchWatch $watch): MarketplaceSearch
+    {
+        return $this->clients[$watch->marketplace->value]
+            ?? throw new MarketplaceException(\sprintf('No client for marketplace %s.', $watch->marketplace->value));
     }
 
     /**

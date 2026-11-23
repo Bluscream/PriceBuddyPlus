@@ -34,4 +34,26 @@ final class MarketplaceTest extends TestCase
     {
         self::assertSame($expected, Marketplace::fromSearchUrl($url));
     }
+
+    /**
+     * @return array<string, array{Marketplace, string, ?int}>
+     */
+    public static function radii(): array
+    {
+        return [
+            'query with location and radius' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-55116/pinguino/k0l5315r50', 50],
+            'category, query, location and radius' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-haushaltsgeraete/55116/klimaanlage/k0c176l5315r100', 100],
+            'category without a query' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-haushaltsgeraete/55116/c176l5315r20', 20],
+            'trailing slash' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-55116/pinguino/k0l5315r5/', 5],
+            'no location' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-pinguino/k0', null],
+            'location without radius' => [Marketplace::Kleinanzeigen, 'https://www.kleinanzeigen.de/s-55116/pinguino/k0l5315', null],
+            'ebay never has one' => [Marketplace::Ebay, 'https://www.ebay.de/sch/i.html?_nkw=x&_sadis=50', null],
+        ];
+    }
+
+    #[DataProvider('radii')]
+    public function test_the_search_radius_is_read_from_the_url(Marketplace $marketplace, string $url, ?int $expected): void
+    {
+        self::assertSame($expected, $marketplace->searchRadiusKm($url));
+    }
 }

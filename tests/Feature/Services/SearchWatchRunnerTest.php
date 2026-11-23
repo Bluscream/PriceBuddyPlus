@@ -220,6 +220,105 @@ final class SearchWatchRunnerTest extends TestCase
         self::assertSame('HTTP 503', $watch->last_error);
         self::assertNull($watch->blocked_until);
         self::assertSame(1, $watch->consecutive_failures);
+        self::assertNull($watch->last_succeeded_at);
+    }
+
+    public function test_only_a_successful_check_moves_the_last_success(): void
+    {
+        $this->marketplace->queue([self::listing('1', 100.0)]);
+        $this->runner->check($this->watch);
+        self::assertSameMoment(now(), $this->watch->refresh()->last_succeeded_at);
+        $succeeded = now()->toImmutable();
+
+        Carbon::setTestNow(now()->addHour());
+        $this->marketplace->queue(new MarketplaceException('HTTP 503'));
+        $this->runner->check($this->watch->refresh());
+
+        self::assertSameMoment($succeeded, $this->watch->refresh()->last_succeeded_at);
+        self::assertSame(1, $this->watch->listings()->stillListed()->count(), 'A failed check must not make listings look gone.');
+    }
+
+    public function test_a_listing_missing_from_the_last_successful_check_is_gone(): void
+    {
+        $this->marketplace->queue([self::listing('1', 100.0), self::listing('2', 100.0)]);
+        $this->runner->check($this->watch);
+
+        Carbon::setTestNow(now()->addHour());
+        $this->marketplace->queue([self::listing('2', 100.0)]);
+        $this->runner->check($this->watch->refresh());
+
+        self::assertSame(['2'], $this->watch->listings()->stillListed()->pluck('external_id')->all());
+        self::assertSame(['1'], $this->watch->listings()->gone()->pluck('external_id')->all());
+    }
+
+    public function test_the_url_radius_limits_distance_when_no_max_distance_is_set(): void
+    {
+        // The factory URL ends in r50: a 50 km radius around 55116.
+        self::assertNull($this->watch->max_distance_km);
+
+        self::assertTrue($this->runner->matches($this->watch, self::listing('near', 100.0, distanceKm: 50)));
+        self::assertFalse($this->runner->matches($this->watch, self::listing('padding', 100.0, distanceKm: 469)));
+        self::assertSame('Further than 50 km away.', $this->runner->mismatch($this->watch, self::listing('padding', 100.0, distanceKm: 469)));
+    }
+
+    public function test_an_explicit_max_distance_wins_over_the_url_radius(): void
+    {
+        $this->watch->update(['max_distance_km' => 100]);
+
+        self::assertTrue($this->runner->matches($this->watch, self::listing('x', 100.0, distanceKm: 80)));
+    }
+
+    public function test_require_price_skips_listings_without_one(): void
+    {
+        self::assertTrue($this->runner->matches($this->watch, self::listing('vb', null)));
+
+        $this->watch->update(['require_price' => true]);
+
+        self::assertSame('No price given.', $this->runner->mismatch($this->watch, self::listing('vb', null)));
+        self::assertTrue($this->runner->matches($this->watch, self::listing('priced', 80.0)));
+    }
+
+    public function test_the_mismatch_names_the_excluded_word(): void
+    {
+        $this->watch->update(['exclude_keywords' => ['defekt'], 'max_price' => 150]);
+
+        self::assertSame('Mentions “defekt”.', $this->runner->mismatch($this->watch, self::listing('x', 100.0, description: 'Leider DEFEKT')));
+        self::assertSame('Above the maximum price.', $this->runner->mismatch($this->watch, self::listing('y', 200.0)));
+        self::assertNull($this->runner->mismatch($this->watch, self::listing('z', 100.0)));
+    }
+
+    public function test_a_preview_scores_listings_without_storing_or_notifying(): void
+    {
+        $this->watch->update(['max_price' => 150]);
+        $this->marketplace->queue([self::listing('cheap', 100.0), self::listing('dear', 300.0)]);
+
+        $rows = $this->runner->preview($this->watch);
+
+        self::assertSame([null, 'Above the maximum price.'], \array_column($rows, 'mismatch'));
+        self::assertSame(0, $this->watch->listings()->count());
+        self::assertNull($this->watch->refresh()->last_checked_at);
+        Notification::assertNothingSent();
+    }
+
+    public function test_rescoring_applies_changed_filters_to_stored_listings_quietly(): void
+    {
+        $this->marketplace->queue([
+            self::listing('ok', 100.0),
+            self::listing('broken', 100.0, description: 'Kompressor defekt'),
+            self::listing('dear', 300.0),
+        ]);
+        $this->runner->check($this->watch);
+        self::assertSame(3, $this->watch->listings()->where('matches_filters', true)->count());
+
+        $this->watch->update(['exclude_keywords' => ['defekt'], 'max_price' => 150]);
+        $changed = $this->runner->rescore($this->watch->refresh());
+
+        self::assertSame(2, $changed);
+        self::assertSame(['ok'], $this->watch->listings()->where('matches_filters', true)->pluck('external_id')->all());
+        Notification::assertNothingSent();
+
+        $this->watch->update(['exclude_keywords' => [], 'max_price' => null]);
+        self::assertSame(2, $this->runner->rescore($this->watch->refresh()));
     }
 }
 

@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ?float $min_price
  * @property ?float $max_price
  * @property ?int $max_distance_km
+ * @property bool $require_price
  * @property ?list<string> $include_keywords
  * @property ?list<string> $exclude_keywords
  * @property bool $notify_new_listings
@@ -31,10 +32,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $check_interval_minutes
  * @property bool $enabled
  * @property ?CarbonInterface $last_checked_at
+ * @property ?CarbonInterface $last_succeeded_at
+ * @property ?CarbonInterface $listings_viewed_at
  * @property ?CarbonInterface $blocked_until
  * @property int $consecutive_failures
  * @property ?string $last_error
  * @property-read User $user
+ * @property-read ?int $listings_count
+ * @property-read ?int $matching_listings_count
+ * @property-read ?int $new_listings_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, SearchWatchListing> $listings
  */
 class SearchWatch extends Model
@@ -53,6 +59,7 @@ class SearchWatch extends Model
             'min_price' => 'float',
             'max_price' => 'float',
             'max_distance_km' => 'integer',
+            'require_price' => 'boolean',
             'include_keywords' => 'array',
             'exclude_keywords' => 'array',
             'notify_new_listings' => 'boolean',
@@ -60,6 +67,8 @@ class SearchWatch extends Model
             'check_interval_minutes' => 'integer',
             'enabled' => 'boolean',
             'last_checked_at' => 'datetime',
+            'last_succeeded_at' => 'datetime',
+            'listings_viewed_at' => 'datetime',
             'blocked_until' => 'datetime',
             'consecutive_failures' => 'integer',
         ];
@@ -119,5 +128,19 @@ class SearchWatch extends Model
     public function intervalMinutes(): int
     {
         return \max(self::MIN_INTERVAL_MINUTES, $this->check_interval_minutes);
+    }
+
+    /**
+     * The distance limit that applies: the watch's own, or else the radius in the search URL,
+     * because Kleinanzeigen pads a thin result page with listings far outside that radius.
+     */
+    public function effectiveMaxDistanceKm(): ?int
+    {
+        return $this->max_distance_km ?? $this->marketplace->searchRadiusKm($this->search_url);
+    }
+
+    public function isPaused(?CarbonInterface $now = null): bool
+    {
+        return $this->blocked_until !== null && $this->blocked_until->greaterThan($now ?? now());
     }
 }

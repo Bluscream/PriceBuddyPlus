@@ -24,7 +24,7 @@ class HomeDashboardTest extends TestCase
 
     public function test_customize_action_seeds_current_section_visibility(): void
     {
-        // Defaults: only buy_now visible.
+        // Defaults: only buy_now and the search watches visible.
         Livewire::test(HomeDashboard::class)
             ->mountAction('customize')
             ->assertActionDataSet([
@@ -32,6 +32,7 @@ class HomeDashboardTest extends TestCase
                 'buy_now' => true,
                 'recently_dropped' => false,
                 'needs_attention' => false,
+                'search_watches' => true,
             ]);
     }
 
