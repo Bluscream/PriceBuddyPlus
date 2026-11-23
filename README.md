@@ -1,5 +1,11 @@
 # <img src="public/images/logo-full.svg" width="250" height="auto" alt="PriceBuddy">
 
+> **PriceBuddyPlus** is a fork of [jez500/pricebuddy](https://github.com/jez500/pricebuddy) that adds
+> **[search watches](docs/docs/search-watches.md)**: saved searches on second-hand marketplaces
+> (Kleinanzeigen, eBay.de) checked on a schedule, with notifications for new matching listings and
+> price drops, and one-click price tracking for a listing you like. It also ships German store
+> definitions. Everything else is upstream PriceBuddy, merged regularly.
+
 **Track prices from the stores you actually use. Run it yourself. Keep the data. Know when a deal is real.**
 
 PriceBuddy is an open source, self-hostable price tracker for people who would rather watch products than browser tabs. Paste in a product URL, let PriceBuddy check it on a schedule, and get notified when the price or availability moves in your favour.

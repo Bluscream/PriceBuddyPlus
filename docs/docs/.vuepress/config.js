@@ -27,6 +27,7 @@ export default defineUserConfig({
             '/stores',
             '/products',
             '/product-sources',
+            '/search-watches',
             '/tags',
             '/settings',
             '/users',
