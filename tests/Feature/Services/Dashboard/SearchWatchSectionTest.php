@@ -64,6 +64,16 @@ final class SearchWatchSectionTest extends TestCase
         self::assertSame(1, $watches->sole()->new_listings_count);
     }
 
+    public function test_watches_with_matches_come_first(): void
+    {
+        $empty = SearchWatch::factory()->for($this->user)->create(['name' => 'Aaa nothing here']);
+        $this->listing(100.0);
+
+        $order = (new SearchWatchSection($this->user))->watches()->pluck('id')->all();
+
+        self::assertSame([$this->watch->id, $empty->id], $order);
+    }
+
     public function test_latest_finds_are_the_newest_matching_listings_still_listed(): void
     {
         $older = $this->listing(100.0, '-2 days');

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -42,6 +43,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read ?int $matching_listings_count
  * @property-read ?int $new_listings_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, SearchWatchListing> $listings
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Product> $products
  */
 class SearchWatch extends Model
 {
@@ -88,6 +90,17 @@ class SearchWatch extends Model
     public function listings(): HasMany
     {
         return $this->hasMany(SearchWatchListing::class);
+    }
+
+    /**
+     * Tracked products this search is for, so its listings can be shown as used offers next to
+     * their new prices.
+     *
+     * @return BelongsToMany<Product, $this>
+     */
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class);
     }
 
     /**

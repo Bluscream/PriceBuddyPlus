@@ -66,6 +66,13 @@ on *notify on every change* for it, so you hear when the seller lowers a negotia
 PriceBuddyPlus ships store definitions for Kleinanzeigen and eBay DE ad pages, created on
 first use (or with `php artisan buddy:create-stores germany`).
 
+## Used offers on a product
+
+Pick tracked products under **Compare with products** on a watch, for example the Pinguino
+watch with your DeLonghi Pinguino products. The product page then lists the watch's
+matching listings still on the marketplace as **Used offers**, cheapest first, with how far
+each is below the product's current new price.
+
 ## Being polite to the marketplace
 
 - Watches are checked one at a time with a pause between them (`SEARCH_WATCH_SLEEP_SECONDS`,

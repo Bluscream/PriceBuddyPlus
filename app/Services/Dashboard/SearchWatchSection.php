@@ -59,7 +59,9 @@ final readonly class SearchWatchSection
                     ->where(static fn (Builder $v) => $v->whereNull('search_watches.listings_viewed_at')
                         ->orWhereColumn('search_watch_listings.first_seen_at', '>', 'search_watches.listings_viewed_at')),
             ])
+            // Watches with something to look at first; the empty ones trail behind.
             ->orderByDesc('enabled')
+            ->orderByDesc('matching_listings_count')
             ->orderBy('name')
             ->get();
     }

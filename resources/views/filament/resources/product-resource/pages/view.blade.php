@@ -80,6 +80,8 @@
                                 </div>
                             </div>
                         </div>
+
+                        @include('filament.resources.product-resource.used-offers', ['record' => $record])
                     </div>
                 </div>
             </div>

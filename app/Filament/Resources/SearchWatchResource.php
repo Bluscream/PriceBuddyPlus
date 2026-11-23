@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Enums\Marketplace;
 use App\Filament\Resources\SearchWatchResource\Pages;
 use App\Filament\Resources\SearchWatchResource\RelationManagers\ListingsRelationManager;
+use App\Models\Product;
 use App\Models\SearchWatch;
 use App\Models\SearchWatchListing;
 use Closure;
@@ -80,6 +81,15 @@ class SearchWatchResource extends Resource
                         ->label(__('Skip listings mentioning'))
                         ->placeholder(__('e.g. defekt, suche'))
                         ->columnSpan(['default' => 3, 'md' => 'full']),
+                    Forms\Components\Select::make('products')
+                        ->label(__('Compare with products'))
+                        ->helperText(__('Matching listings show up as used offers on these products, next to their new price.'))
+                        ->relationship('products', 'title', fn (Builder $query) => $query->where('products.user_id', auth()->id()))
+                        ->getOptionLabelFromRecordUsing(fn (Product $product): string => $product->title ?? '#'.$product->id)
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->columnSpan(['default' => 3, 'md' => 'full']),
                 ]),
             Forms\Components\Section::make(__('Checking & notifications'))
                 ->columns(2)
@@ -130,7 +140,7 @@ class SearchWatchResource extends Resource
                     ->color(fn (int $state): string => $state > 0 ? 'success' : 'gray')
                     ->description(fn (SearchWatch $record): string => __(':count seen', ['count' => $record->listings_count ?? 0]))
                     ->sortable(),
-                Tables\Columns\TextColumn::make('max_price')->label(__('Max price'))->money('EUR')->placeholder('–'),
+                Tables\Columns\TextColumn::make('max_price')->label(__('Max price'))->money('EUR', locale: 'de')->placeholder('–'),
                 Tables\Columns\TextColumn::make('last_checked_at')->label(__('Last checked'))->since()->sortable()->placeholder(__('Never')),
                 Tables\Columns\IconColumn::make('status')
                     ->label(__('Status'))
