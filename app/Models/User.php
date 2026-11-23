@@ -73,6 +73,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Product::class);
     }
 
+    public function searchWatches(): HasMany
+    {
+        return $this->hasMany(SearchWatch::class);
+    }
+
     /**
      * Get notification setting(s) for a specific method.
      */

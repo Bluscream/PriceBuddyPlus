@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Search watches (saved marketplace searches).
+    |--------------------------------------------------------------------------
+    |
+    | Watches are checked one at a time with a pause between them, and at most
+    | max_per_run per minute, so a home IP shared with a browser is never hammered.
+    |
+    */
+    'search_watches' => [
+        'sleep_seconds_between' => (int) env('SEARCH_WATCH_SLEEP_SECONDS', 5),
+        'max_per_run' => (int) env('SEARCH_WATCH_MAX_PER_RUN', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | The url to the scraper service.
     |--------------------------------------------------------------------------
     */

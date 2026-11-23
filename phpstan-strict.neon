@@ -1,0 +1,38 @@
+# PriceBuddyPlus: the search-watch module is held to PHPStan's highest level, on top of the
+# project-wide level in phpstan.neon. Run: vendor/bin/phpstan analyse -c phpstan-strict.neon
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+
+parameters:
+    level: max
+    treatPhpDocTypesAsCertain: false
+    paths:
+        - app/Console/Commands/CheckSearchWatches.php
+        - app/Dto/MarketplaceListingDto.php
+        - app/Dto/SearchWatchCheckResultDto.php
+        - app/Dto/SearchWatchEventDto.php
+        - app/Enums/Marketplace.php
+        - app/Enums/SearchWatchEventKind.php
+        - app/Exceptions/MarketplaceBlockedException.php
+        - app/Exceptions/MarketplaceException.php
+        - app/Filament/Resources/SearchWatchResource.php
+        - app/Filament/Resources/SearchWatchResource
+        - app/Models/SearchWatch.php
+        - app/Models/SearchWatchListing.php
+        - app/Notifications/SearchWatchNotification.php
+        - app/Policies/SearchWatchPolicy.php
+        - app/Services/Marketplaces
+        - app/Services/SearchWatchListingTracker.php
+        - app/Services/SearchWatchRunner.php
+        - tests/Feature/Console/CheckSearchWatchesTest.php
+        - tests/Feature/Filament/SearchWatchResourceTest.php
+        - tests/Feature/Services/EbaySearchTest.php
+        - tests/Feature/Services/KleinanzeigenSearchTest.php
+        - tests/Feature/Services/SearchWatchListingTrackerTest.php
+        - tests/Feature/Services/SearchWatchRunnerTest.php
+        - tests/Unit/Enums/MarketplaceTest.php
+        - tests/Unit/Notifications/SearchWatchNotificationTest.php
+        - tests/Unit/Services/PriceTextTest.php
+        - tests/Unit/SearchWatchSizeLimitsTest.php
+        - tests/Traits/SearchWatchAssertions.php

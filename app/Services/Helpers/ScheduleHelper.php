@@ -2,6 +2,7 @@
 
 namespace App\Services\Helpers;
 
+use App\Console\Commands\CheckSearchWatches;
 use App\Console\Commands\FetchAll;
 use App\Console\Commands\FetchDue;
 use App\Models\UrlResearch;
@@ -47,6 +48,11 @@ class ScheduleHelper
             // lock so a crashed/unclean run can't block the next minute for the
             // 24h default.
             ->withoutOverlapping(5);
+        // Check saved marketplace searches that are due. Runs inline and sleeps between
+        // watches, so the lock is held for the length of one run at most.
+        $schedule->command(CheckSearchWatches::COMMAND)
+            ->everyMinute()
+            ->withoutOverlapping(15);
         // Prune old log messages
         $schedule->command('model:prune', ['--model' => [LogMessage::class]])->daily();
         // Prune search research results.

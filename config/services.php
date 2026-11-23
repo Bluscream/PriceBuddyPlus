@@ -39,4 +39,11 @@ return [
         'token' => env('PUSHOVER_APP_TOKEN'),
     ],
 
+    // eBay Browse API application keys, used by search watches on ebay.de.
+    // Create them at https://developer.ebay.com/my/keys (production keyset).
+    'ebay' => [
+        'client_id' => env('EBAY_CLIENT_ID'),
+        'client_secret' => env('EBAY_CLIENT_SECRET'),
+    ],
+
 ];
