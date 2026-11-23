@@ -2,10 +2,12 @@
 name: Deploy Docs
 
 on:
-  push:
-    branches:
-      # make sure this is the branch you are using
-      - main
+  workflow_dispatch:
+  # Disabled: workflows do not run under this account; uncomment if you fork this repository.
+  # push:
+  #   branches:
+  #     # make sure this is the branch you are using
+  #     - main
 
 permissions:
   contents: write

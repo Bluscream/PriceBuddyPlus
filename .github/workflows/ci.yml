@@ -1,8 +1,10 @@
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
+  workflow_dispatch:
+  # Disabled: workflows do not run under this account; uncomment if you fork this repository.
+  # push:
+  #   branches: [main]
+  #   tags: ['v*']
+  # pull_request:
 
 name: CI
 
